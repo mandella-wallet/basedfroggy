@@ -1,0 +1,19 @@
+{
+  "name": "Whack-a-Frog",
+  "description": "A fun and challenging whack-a-mole style game featuring frogs. Whack the frogs as they appear, but don't let them escape! The game gets progressively harder with increasing speed and number of frogs.",
+  "version": "1.0.0",
+  "author": "Mandella Wallet",
+  "categories": ["arcade", "casual", "reaction"],
+  "controls": {
+    "mouse": true,
+    "touch": true
+  },
+  "features": {
+    "highscore": true,
+    "levels": true
+  },
+  "thumbnail": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAAA1BMVEUl+vT+y8iGAAAAH0lEQVR42u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAA3wZcqAABgn+76QAAAABJRU5ErkJggg==",
+  "screenshots": [
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABQAAAALQAQMAAAAz+0vBAAAAA1BMVEUl+vT+y8iGAAAAKUlEQVR42u3BMQEAAADCoPVPbQZ/oAAAAAAAAAAAAAAAAAAAAAAAAIC3AcUIAAFkqh/SAAAAAElFTkSuQmCC"
+  ]
+}

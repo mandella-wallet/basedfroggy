@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whack-a-Frog</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, rgb(220 252 231), rgb(187 247 208));
+            font-family: var(--font-geist-sans, sans-serif);
+        }
+        
+        .container {
+            max-width: 64rem;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: rgb(22 101 52);
+        }
+
+        .description {
+            font-size: 1.125rem;
+            color: rgb(21 128 61);
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(4px);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .stat-item {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .score { color: rgb(21 128 61); }
+        .level { color: rgb(147 51 234); }
+        .speed { color: rgb(37 99 235); }
+        .missed { color: rgb(220 38 38); }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            max-width: 32rem;
+            margin: 0 auto;
+        }
+
+        .hole {
+            aspect-ratio: 1;
+            background: rgb(21 128 61);
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            transition: all 0.1s;
+        }
+
+        .hole:hover {
+            background: rgb(22 101 52);
+        }
+
+        .hole:active {
+            transform: scale(0.95);
+        }
+
+        .frog {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+
+        #startBtn {
+            display: block;
+            margin: 2rem auto;
+            padding: 1rem 2rem;
+            font-size: 1.5rem;
+            background: rgb(22 163 74);
+            color: white;
+            border: none;
+            border-radius: 2rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #startBtn:hover {
+            background: rgb(21 128 61);
+        }
+
+        #gameOver {
+            display: none;
+            text-align: center;
+            color: rgb(220 38 38);
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 1rem 0;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(to bottom, rgb(20 83 45), rgb(22 101 52));
+            }
+
+            h1 { color: rgb(187 247 208); }
+            .description { color: rgb(220 252 231); }
+            .game-container { 
+                background: rgba(31, 41, 55, 0.8);
+            }
+            .score { color: rgb(134 239 172); }
+            .level { color: rgb(216 180 254); }
+            .speed { color: rgb(147 197 253); }
+            .missed { color: rgb(252 165 165); }
+            .hole { background: rgb(22 163 74); }
+            .hole:hover { background: rgb(21 128 61); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐸 Whack-a-Frog! 🐸</h1>
+            <p class="description">Whack the frogs as fast as you can! Don't let 3 frogs escape!</p>
+        </header>
+
+        <div class="game-container">
+            <div class="stats">
+                <div class="stat-item score">Score: <span id="score">0</span></div>
+                <div class="stat-item level">Level: <span id="level">1</span></div>
+                <div class="stat-item speed">Speed: <span id="speed">0</span>%</div>
+                <div class="stat-item missed">Missed: <span id="missed">0</span>/3</div>
+            </div>
+            
+            <div id="gameOver">Game Over!</div>
+            <div id="grid"></div>
+            <button id="startBtn" disabled>Loading...</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Mock SDK for local development
+        const localSDK = {
+            init: () => Promise.resolve(),
+            on: () => {},
+            singlePlayer: {
+                actions: {
+                    ready: () => {},
+                    gameOver: () => {},
+                    hapticFeedback: () => {}
+                }
+            }
+        };
+
+        let sdk;
+        try {
+            // Try to load the real SDK with a short timeout
+            const sdkModule = await Promise.race([
+                import('https://cdn.farcade.io/sdk/v1.0.0/index.js'),
+                new Promise((_, reject) => setTimeout(() => reject('SDK timeout'), 2000))
+            ]);
+            sdk = sdkModule.sdk;
+        } catch (error) {
+            console.log('Using local mode:', error);
+            sdk = localSDK;
+        }
+
+        const INITIAL_STATE = {
+            score: 0,
+            level: 1,
+            isPlaying: false,
+            activeFrogs: [],
+            missedFrogs: 0,
+            isGameOver: false,
+            interval: null,
+            holes: Array(9).fill(null),
+            isMuted: false
+        };
+
+        class WhackAFrog {
+            constructor() {
+                this.gameState = {...INITIAL_STATE};
+                this.setupDOM();
+                this.initializeGame();
+            }
+
+            async initializeGame() {
+                try {
+                    await sdk.init();
+                    this.setupEventListeners();
+                    this.setupFarcadeListeners();
+                    this.startBtn.disabled = false;
+                    this.startBtn.textContent = 'Start Game';
+                    sdk.singlePlayer.actions.ready();
+                } catch (error) {
+                    console.warn('Running in local mode:', error);
+                    this.setupEventListeners();
+                    this.startBtn.disabled = false;
+                    this.startBtn.textContent = 'Start Game (Local)';
+                }
+            }
+
+            setupFarcadeListeners() {
+                sdk.on('play_again', () => {
+                    if (this.gameState.isGameOver) {
+                        this.startGame();
+                    }
+                });
+                
+                sdk.on('toggle_mute', (data) => {
+                    this.gameState.isMuted = data.isMuted;
+                });
+            }
+
+            setupDOM() {
+                this.scoreEl = document.getElementById('score');
+                this.levelEl = document.getElementById('level');
+                this.speedEl = document.getElementById('speed');
+                this.missedEl = document.getElementById('missed');
+                this.startBtn = document.getElementById('startBtn');
+                this.gameOverEl = document.getElementById('gameOver');
+                this.gridEl = document.getElementById('grid');
+
+                // Create holes
+                this.gameState.holes.forEach((_, i) => {
+                    const hole = document.createElement('div');
+                    hole.className = 'hole';
+                    hole.dataset.index = i;
+                    this.gridEl.appendChild(hole);
+                });
+            }
+
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => {
+                    if (!this.gameState.isPlaying) {
+                        this.startGame();
+                    }
+                });
+
+                this.gridEl.addEventListener('click', (e) => {
+                    const hole = e.target.closest('.hole');
+                    if (hole) {
+                        const index = parseInt(hole.dataset.index);
+                        this.whackFrog(index);
+                    }
+                });
+            }
+
+            startGame() {
+                Object.assign(this.gameState, INITIAL_STATE);
+                this.gameState.isPlaying = true;
+                this.updateUI();
+                this.startBtn.style.display = 'none';
+                this.gameOverEl.style.display = 'none';
+                this.startFrogSpawning();
+            }
+
+            getNumberOfFrogs() {
+                return Math.min(1 + Math.floor((this.gameState.level - 1) / 5), 4);
+            }
+
+            getFrogSpeed() {
+                return Math.max(1000 - (this.gameState.level - 1) * 50, 100);
+            }
+
+            getSpeedPercentage() {
+                return Math.min(((this.gameState.level - 1) * 5), 100);
+            }
+
+            whackFrog(index) {
+                if (this.gameState.activeFrogs.includes(index) && this.gameState.isPlaying) {
+                    this.gameState.score++;
+                    this.gameState.activeFrogs = this.gameState.activeFrogs.filter(i => i !== index);
+                    if (this.gameState.score % 10 === 0 && this.gameState.level < 1000) {
+                        this.gameState.level++;
+                        this.startFrogSpawning(); // Restart interval with new speed
+                    }
+                    this.updateUI();
+                    this.updateFrogs();
+                    sdk.singlePlayer.actions.hapticFeedback();
+                }
+            }
+
+            startFrogSpawning() {
+                if (this.gameState.interval) clearInterval(this.gameState.interval);
+                this.gameState.interval = setInterval(() => this.spawnFrogs(), this.getFrogSpeed());
+            }
+
+            spawnFrogs() {
+                if (this.gameState.activeFrogs.length > 0) {
+                    this.gameState.missedFrogs += this.gameState.activeFrogs.length;
+                    if (this.gameState.missedFrogs >= 3) {
+                        this.gameOver();
+                        return;
+                    }
+                }
+
+                const numFrogs = this.getNumberOfFrogs();
+                const availableHoles = Array.from({length: 9}, (_, i) => i);
+                this.gameState.activeFrogs = [];
+
+                for (let i = 0; i < numFrogs; i++) {
+                    if (availableHoles.length === 0) break;
+                    const randomIndex = Math.floor(Math.random() * availableHoles.length);
+                    this.gameState.activeFrogs.push(availableHoles[randomIndex]);
+                    availableHoles.splice(randomIndex, 1);
+                }
+
+                this.updateUI();
+                this.updateFrogs();
+            }
+
+            updateFrogs() {
+                this.gameState.holes.forEach((_, i) => {
+                    const hole = this.gridEl.children[i];
+                    const frog = hole.querySelector('.frog');
+                    
+                    if (this.gameState.activeFrogs.includes(i)) {
+                        if (!frog) {
+                            const newFrog = document.createElement('div');
+                            newFrog.className = 'frog';
+                            newFrog.textContent = '🐸';
+                            newFrog.style.animation = `bounce ${this.getFrogSpeed()}ms infinite ease-in-out`;
+                            hole.appendChild(newFrog);
+                        }
+                    } else if (frog) {
+                        frog.remove();
+                    }
+                });
+            }
+
+            gameOver() {
+                this.gameState.isPlaying = false;
+                this.gameState.isGameOver = true;
+                if (this.gameState.interval) clearInterval(this.gameState.interval);
+                this.startBtn.style.display = 'block';
+                this.startBtn.textContent = '🔄 Play Again';
+                this.gameOverEl.style.display = 'block';
+                this.gameState.activeFrogs = [];
+                this.updateFrogs();
+                sdk.singlePlayer.actions.gameOver({ score: this.gameState.score });
+            }
+
+            updateUI() {
+                this.scoreEl.textContent = this.gameState.score;
+                this.levelEl.textContent = this.gameState.level;
+                this.speedEl.textContent = this.getSpeedPercentage();
+                this.missedEl.textContent = this.gameState.missedFrogs;
+            }
+        }
+
+        // Initialize immediately
+        window.game = new WhackAFrog();
+    </script>
+</body>
+</html>
