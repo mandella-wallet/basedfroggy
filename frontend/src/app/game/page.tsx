@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import Image from 'next/image';
+// Menghapus import Image yang tidak digunakan
 
 export default function WhackAFrog() {
   const [score, setScore] = useState(0);

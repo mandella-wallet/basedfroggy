@@ -1,12 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-// import Image from "next/image";
 
 export default function Home() {
   const [score, setScore] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeFrogs, setActiveFrogs] = useState<number[]>([]); // Changed from single activeFrog
-  const [highScore, setHighScore] = useState(0);
+  const [activeFrogs, setActiveFrogs] = useState<number[]>([]);
   const [level, setLevel] = useState(1);
   const [isGameOver, setIsGameOver] = useState(false);
   const [missedFrogs, setMissedFrogs] = useState(0);
@@ -80,7 +78,6 @@ export default function Home() {
       }, getFrogSpeed());
     } else if (isGameOver) {
       setIsPlaying(false);
-      setHighScore(prev => Math.max(prev, score));
     }
 
     return () => {
@@ -94,12 +91,15 @@ export default function Home() {
     return Math.min(((level - 1) * 5), 100);
   };
 
+  // Menggunakan getSpeedPercentage dalam UI
+  const speedDisplay = getSpeedPercentage();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-100 to-green-200 dark:from-green-900 dark:to-green-800">
       <div className="container mx-auto px-4 py-8">
         <header className="text-center mb-8">
           <h1 className="text-5xl font-bold mb-2 text-green-800 dark:text-green-100">🐸 Whack-a-Frog! 🐸</h1>
-          <p className="text-lg text-green-700 dark:text-green-200">Whack the frogs as fast as you can! Don't let 3 frogs escape!</p>
+          <p className="text-lg text-green-700 dark:text-green-200">Whack the frogs as fast as you can! Don&apos;t let 3 frogs escape!</p>
         </header>
 
         <div className="max-w-4xl mx-auto">
@@ -109,14 +109,11 @@ export default function Home() {
                 <p className="text-2xl font-semibold text-green-700 dark:text-green-300">
                   Score: {score}
                 </p>
-                {/* <p className="text-xl text-green-600 dark:text-green-400">
-                  High Score This Session: {highScore}
-                </p> */}
                 <p className="text-xl text-purple-600 dark:text-purple-400">
                   Level: {level}
                 </p>
-                <p className="text-xl text-yellow-600 dark:text-yellow-400">
-                  Active Frogs: {getNumberOfFrogs()}
+                <p className="text-xl text-blue-600 dark:text-blue-400">
+                  Speed: {speedDisplay}%
                 </p>
                 <p className="text-xl text-red-600 dark:text-red-400">
                   Missed Frogs: {missedFrogs}/3
